@@ -90,4 +90,16 @@ class UsersController extends Controller
         session()->flash('success', '个人资料更新成功');
         return redirect()->route('users.show', $user);
     }
+
+    public function destroy(User $user)
+    {
+        try {
+            $this->authorize('destroy', $user);
+        } catch (AuthorizationException $e) {
+            return abort(403, '无权访问');
+        }
+        $user->delete();
+        session()->flash('success', '删除成功！');
+        return redirect()->back();
+    }
 }
