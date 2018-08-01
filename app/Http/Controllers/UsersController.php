@@ -7,13 +7,14 @@ use Illuminate\Auth\Access\AuthorizationException;
 use App\Models\User;
 
 use Auth;
+use Mail;
 
 class UsersController extends Controller
 {
     public function __construct()
     {
         $this->middleware('auth', [
-            'except' => ['index', 'show', 'create', 'store']
+            'except' => ['index', 'show', 'create', 'store', 'confirmEmail']
         ]);
 
         $this->middleware('guest', [
@@ -52,7 +53,8 @@ class UsersController extends Controller
         ]);
         Auth::login($user);
 
-        session()->flash('success', '欢迎，您将在这里开启一段新的旅程~');
+        $this->sendEmailConfirmationTo($user);
+        session()->flash('success', '验证邮件已发送到你的注册邮箱上，请注意查收。');
         return redirect()->route('users.show', [$user]);
     }
 
@@ -101,5 +103,32 @@ class UsersController extends Controller
         $user->delete();
         session()->flash('success', '删除成功！');
         return redirect()->back();
+    }
+
+    protected function sendEmailConfirmationTo($user)
+    {
+        $view = 'emails.confirm';
+        $data = compact('user');
+        $from = 'aufree@yousails.com';
+        $name = 'Aufree';
+        $to = $user->email;
+        $subject = '感谢注册 Sample 应用！请确认你的邮箱。';
+
+        Mail::send($view, $data, function ($message) use ($from, $to, $name, $subject) {
+            $message->from($from, $name)->to($to)->subject($subject);
+        });
+    }
+
+    public function confirmEmail($token)
+    {
+        $user = User::where('activation_token', $token)->firstOrFail();
+
+        $user->activated = true;
+        $user->activation_token = null;
+        $user->save();
+
+        Auth::login($user);
+        session()->flash('success', '恭喜你，激活成功！');
+        return redirect()->route('users.show', $user);
     }
 }
